@@ -1,7 +1,11 @@
+#Universidade Federal do Pará
+#Aluno: Douglas Almeida Vidal
+#Matrícula: 202300470005
+
 import socket
 import os
 
-# Função que lida com comandos em geral
+# Função que lida com comandos
 def handle_command(client_socket, valid_users):
     dir_arq = 'pta-server/files'  
     seq_num = 0  
@@ -25,6 +29,7 @@ def handle_command(client_socket, valid_users):
                     client_socket.send(f"{seq_num} OK".encode())
                 else:
                     client_socket.send(f"{seq_num} NOK".encode())
+                    print("Conexão encerrada, acesso de usuário não autorizado")
                     client_socket.close()
                     break
 
@@ -38,28 +43,30 @@ def handle_command(client_socket, valid_users):
                         file_list = ','.join(files)
                         client_socket.send(f"{seq_num} ARQS {len(files)} {file_list}".encode())
                 except Exception as e:
-                    print(f"Erro enqunato listava os arquivos: {e}")
+                    print(f"Erro enquanto listava os arquivos: {e}")
                     client_socket.send(f"{seq_num} NOK".encode())
 
             # Pegando arquivo
             elif command == "PEGA":
-                filename = parts[2]
-                file_path = os.path.join(dir_arq, filename)
-                if os.path.exists(file_path):
-                    try:
-                        with open(file_path, 'r') as f:
-                            file_content = f.read()
-                        file_size = len(file_content)
-                        client_socket.send(f"{seq_num} ARQ {file_size} {file_content}".encode())
-                    except Exception as e:
-                        print(f"Erro ao ler o arquivo: {e}")
-                        client_socket.send(f"{seq_num} NOK".encode())
-                else:
+               filename = parts[2]
+               file_path = os.path.join(dir_arq, filename)
+               if os.path.exists(file_path):
+                 try:
+                    with open(file_path, 'rb') as f:  # Abre o arquivo em modo binário
+                      file_content = f.read()
+                    file_size = len(file_content)
+                    client_socket.send(f"{seq_num} ARQ {file_size} ".encode())
+                    client_socket.send(file_content)  # Envia o conteúdo binário
+                 except Exception as e:
+                    print(f"Erro ao ler o arquivo: {e}")
                     client_socket.send(f"{seq_num} NOK".encode())
+               else:
+                 client_socket.send(f"{seq_num} NOK".encode())
 
             # Terminando a conexão
             elif command == "TERM":
                 client_socket.send(f"{seq_num} OK".encode())
+                print("Conexão encerrada com comando TERM")
                 client_socket.close()
                 break
 
@@ -70,10 +77,11 @@ def handle_command(client_socket, valid_users):
         except Exception as e:
             print(f"Erro durante a comunicação do cliente: {e}")
             client_socket.send(f"{seq_num} NOK".encode())
+            print("Conexão encerrada devido a erro")
             client_socket.close()
             break
 
-# Função principal para iniciar o servidor
+# Função principal do servidor
 def start_server():
     host = '0.0.0.0'
     port = 11550
@@ -83,7 +91,7 @@ def start_server():
         with open(user, 'r') as f:
             valid_users = [line.strip() for line in f.readlines()]
     except FileNotFoundError:
-        print("Arquivo de usuário não encontrando, desconectando")
+        print("Arquivo de usuário não encontrado, desconectando")
         return
 
     # Iniciando o servidor
